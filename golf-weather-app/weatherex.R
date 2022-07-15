@@ -3,25 +3,19 @@ library(shinythemes)
 library(data.table)
 library(RCurl)
 library(randomForest)
-
 # Read data
 weather <- read.csv("C:/Users/terra/projects/ColumbiaUniversity/predict/prediction-model-examples/golf-weather-app/weather.csv" )
 
 # Build model
-model <- randomForest(as.factor(play) ~ ., data = weather, ntree = 500, mtry = 4, importance = TRUE)
+weather$play = factor(weather$play)
+
+model <- randomForest(play ~ ., data = weather, ntree = 500, mtry = 4, importance = TRUE)
 #ntree
 #Number of trees to grow. This should not be set to too small a number, to ensure that every input row gets predicted at least a few times.
 #mtry
 #Number of variables randomly sampled as candidates at each split. 
 #Note that the default values are different for classification (sqrt(p) where p is number of variables in x) and regression (p/3)
 
-#newdf <- data.frame(
- # outlook='sunny',
- # temperature=100,
- # humidity=90,
-#  windy='yes',
-#  play='play'
-#)
 #testpred<-predict(model, newdf)
 
 # Save model to RDS file
@@ -53,7 +47,7 @@ ui <- fluidPage(theme = shinytheme("united"),
                               min = 65, max = 96,
                               value = 90),
                   selectInput("windy", label = "Windy:", 
-                              choices = list("Yes" = 1, "No" = 0), 
+                              choices = list("Yes" = "TRUE", "No" = "FALSE"), 
                               selected = 1),
                   
                   actionButton("submitbutton", "Submit", class = "btn btn-primary")
@@ -72,17 +66,30 @@ ui <- fluidPage(theme = shinytheme("united"),
 ####################################
 
 server <- function(input, output, session) {
-  
+  val <- eventReactive(
+    
+    input$enter, {
+      
+      x<-data.frame(
+        outlook=input$outlook,
+        temperature=input$temperature,
+        humidity=input$humidity,
+        windy=input$windy,
+        stringsAsFactors = F)
+       }
+    
+  )
   # Input Data
   datasetInput <- reactive({  
-    newdf <- data.frame(
+    
+    x<-data.frame(
       outlook=input$outlook,
       temperature=input$temperature,
       humidity=input$humidity,
       windy=input$windy,
-      play=predict(model,newdf))
+      stringsAsFactors = F)
     
-    Output <-data.frame(Prediction=predict(model,newdf), round(predict(model,newdf,type="prob"), 3))
+    
     
     
   })
@@ -98,9 +105,10 @@ server <- function(input, output, session) {
   
   # Prediction results table
   output$tabledata <- renderTable({
-    if (input$submitbutton>0) { 
-      isolate(datasetInput())
-    } 
+   
+   if (input$submitbutton>0) { 
+     isolate(data.frame(Prediction=predict(model,datasetInput()), round(predict(model,datasetInput(),type="prob"), 3)))
+   } 
   })
   
 }
